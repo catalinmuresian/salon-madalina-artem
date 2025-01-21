@@ -123,7 +123,7 @@ const user = ref({
     name: 'Madalina',
     email: 'madalin@yahoo.com',
     phone: '0763234567',
-    role: 'user'
+    role: 'owner'
 })
 
 // Computed properties
