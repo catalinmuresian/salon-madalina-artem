@@ -15,14 +15,19 @@
         :done="step > 1"/>
       <q-step
         :name="2"
-        title="Selecteaza data"
         prefix="2"
+        title="Selecteaza persoana"
         :done="step > 2"/>
       <q-step
         :name="3"
-        title="Selecteaza ora"
+        title="Selecteaza data"
         prefix="3"
-        :done="step > 3"
+        :done="step > 3"/>
+      <q-step
+        :name="4"
+        title="Selecteaza ora"
+        prefix="4"
+        :done="step > 4"
       />
       <template #navigation>
         <!-- No navigation controls -->
@@ -35,11 +40,20 @@
         label="Selecteaza serviciu"
         option-value="value"
         option-label="label"
-        @update:model-value="updateAvailableHours"
+        @update:model-value="(val) => handleService(val)"
+      />
+      <q-select
+        v-if="selectedService"
+        v-model="selectedProvider"
+        :options="listProviders"
+        label="Selecteaza persoana"
+        option-value="value"
+        option-label="label"
+        @update:model-value="(val) => handleProvider(val)"
       />
       <q-date
         class="full-width"
-        v-if="selectedService"
+        v-if="selectedProvider?.value"
         v-model="selectedDate"
         label="Select Date"
         landscape
@@ -82,7 +96,6 @@
         </q-btn>
         <span v-else style="font-style: italic">Nu exista ora disponibila pentru data selectata !</span>
       </div>
-
     </q-form>
   </div>
 </template>
@@ -91,16 +104,15 @@
 import { reactive, ref, computed } from "vue";
 import ro from "quasar/lang/ro";
 import {date} from "quasar";
+import {useStore} from "vuex";
+const { state } = useStore()
 
-// Reactive variables
 const selectedHour = ref("");
 const selectedService = ref("");
 const selectedDate = ref("");
 const availableHours = ref([]);
 const locale = ro;
-const step = ref(0)
-
-// Services array
+const step = ref(0);
 const services = [
   { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 },
   { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 },
@@ -108,34 +120,100 @@ const services = [
   { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 },
   { label: "Pedichiura clasica (30 minute)", value: "pedichiura_clasica", duration: 30 },
 ];
-
-// Appointments array
-const appointments = reactive([
-  { start: "13:30", end: "15:30", date: "2025-01-21", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 }},
-  { start: "13:30", end: "14:30", date: "2025-01-22", appointmentDetails: { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 }},
-  { start: "14:30", end: "16:30", date: "2025-01-22", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 }},
-  { start: "12:00", end: "13:00", date: "2025-01-23", appointmentDetails: { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 }},
-  { start: "16:00", end: "16:30", date: "2025-01-23", appointmentDetails: { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 }},
-  { start: "13:00", end: "13:30", date: "2025-01-24", appointmentDetails: { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 }},
-]);
-
+const listProviders = ref([
+  {
+    value: 'madalina_artem',
+    label: 'Madalina Artem'
+  },
+  {
+    value: 'marius_alexandru',
+    label: 'Marius Alexandru'
+  }
+])
+const selectedProvider = ref('')
+const appointments = reactive({
+    madalina_artem: {
+      "2025-01-21": [
+        { start: "13:30", end: "15:30", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 } }
+      ],
+      "2025-01-23": [
+        { start: "13:30", end: "14:30", appointmentDetails: { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 } },
+        { start: "14:30", end: "16:30", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 } }
+      ],
+      "2025-01-28": [
+        { start: "12:00", end: "13:00", appointmentDetails: { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 } },
+        { start: "16:00", end: "16:30", appointmentDetails: { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 } }
+      ],
+      "2025-01-27": [
+        { start: "13:00", end: "13:30", appointmentDetails: { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 } }
+      ]
+    },
+    marius_alexandru: {
+      "2025-01-22": [
+        { start: "13:30", end: "14:30", appointmentDetails: { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 } }
+      ],
+      "2025-01-23": [
+        { start: "14:30", end: "16:30", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 } }
+      ],
+      "2025-01-24": [
+        { start: "12:00", end: "13:00", appointmentDetails: { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 } }
+      ]
+    }
+  });
 const user = ref({
     name: 'Madalina',
     email: 'madalin@yahoo.com',
     phone: '0763234567',
     role: 'owner'
 })
+const exceptionWeekendDays = computed(() => {
+  return selectedProvider
+    ? state.data.exeptionWeekendDays[selectedProvider.value?.value]
+    : []
+})
+const disableDates = computed(() => {
+  return state.data.disableDates
+});
+const scheduleModified = computed(() => {
+  return state.data.scheduleModified
+})
+const serviceOptions = computed(() => services.map((service) => ({
+  label: service.label,
+  value: service.value,
+  duration: service.duration
+})));
+const existingAppointmentsList = computed(() => {
+  return (selectedProvider.value?.value && selectedDate.value)
+    ? appointments[selectedProvider.value?.value][selectedDate.value]?.sort((a, b) => a.start.localeCompare(b.start)) || []
+    : []
+})
 
-// Computed properties
-// Disable dates before today and disable today if work hours have passed
+const isDisabledDate = (date) => {
+  const formattedDate = formatDate(date);
+  return disableDates.value[selectedProvider.value?.value].includes(formattedDate);
+};
+const isWeekend = (date) => {
+  const day = date.getDay();
+  return day === 0 || day === 6; // Sunday (0) or Saturday (6)
+};
 const disablePastDates = (dateStr) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Set time to the start of today
   const selectedDate = new Date(dateStr);
 
+  // Check if the date is in the disabled dates array
+  if (isDisabledDate(selectedDate)) {
+    return false; // Disable the date
+  }
+
   // Check if the date is before today
   if (selectedDate < today) {
     return false; // Disable past dates
+  }
+
+  // Disable weekends, unless the date is in the exception list
+  if (isWeekend(selectedDate) && !exceptionWeekendDays.value.includes(formatDate(selectedDate))) {
+    return false; // Disable weekends not in exceptions
   }
 
   // Check if today's work hours are past
@@ -143,10 +221,8 @@ const disablePastDates = (dateStr) => {
     const now = new Date();
     const endOfWorkHours = new Date();
     endOfWorkHours.setHours(17, 0, 0, 0); // Set work hours end to 5 PM
-
     return now < endOfWorkHours; // Enable only if current time is before 5 PM
   }
-
   return true; // Enable future dates
 };
 const disablePastAndSpecificFutureDates = (dateStr) => {
@@ -163,17 +239,29 @@ const disablePastAndSpecificFutureDates = (dateStr) => {
 
   const selectedDate = new Date(dateStr);
 
+  // Check if the date is in the disabled dates array
+  if (isDisabledDate(selectedDate)) {
+    return false; // Disable the date
+  }
+
   // Disable today and tomorrow
   if (selectedDate >= today && selectedDate < dayAfterTomorrow) {
     return false; // Disable today and tomorrow
   }
 
+  // Disable weekends, unless the date is in the exception list
+  if (isWeekend(selectedDate) && !exceptionWeekendDays.value.includes(formatDate(selectedDate))) {
+    return false; // Disable weekends not in exceptions
+  }
+
   // Check if the date is before today
   return selectedDate >= today;
 
-   // Enable dates starting from the day after tomorrow
+  // Enable dates starting from the day after tomorrow
 };
-
+const formatDate = (customDate) => {
+  return date.formatDate(customDate, 'YYYY-MM-DD'); // Return formatted date
+};
 const datePickerOptions = (dateStr, userRole) => {
   if (userRole === 'owner' || userRole === 'admin') {
     return disablePastDates(dateStr);
@@ -181,53 +269,41 @@ const datePickerOptions = (dateStr, userRole) => {
     return disablePastAndSpecificFutureDates(dateStr);
   }
 };
-
 const isDateAllowed = (date) => {
   return datePickerOptions(date, user.value.role);
 };
-
-const serviceOptions = computed(() =>
-  services.map((service) => ({
-    label: service.label,
-    value: service.value,
-    duration: service.duration
-  }))
-);
-
-const existingAppointmentsList = computed(() => {
-  return appointments
-    .filter(appointment => appointment.date === selectedDate.value) // Filter by date
-    .sort((a, b) => a.start.localeCompare(b.start)); // Sort by start time (asc)
-});
-
-// Methods
 const handleValue = (val) => {
   selectedHour.value = val;
-  step.value = 4
+  step.value = 5
 };
-
 const updateAvailableHours = () => {
-  step.value = 2
   selectedHour.value = ''
-  if (selectedService.value && selectedDate.value) {
-    step.value = 3
+  if (selectedService.value && selectedDate.value && selectedProvider.value) {
+    step.value = 4
     const selectedServiceObj = services.find(
-      (service) => service.value === selectedService.value.value
+      (service) => service.value === selectedService.value?.value
     );
     const serviceDuration = selectedServiceObj.duration;
 
-    const filteredAppointments = appointments.filter(
-      (app) => app.date === selectedDate.value
-    );
+    const filteredAppointments = appointments[selectedProvider.value?.value][selectedDate.value]
     availableHours.value = generateTimeSlots(
       serviceDuration,
       filteredAppointments
     );
   }
 };
+const generateTimeSlots = (serviceDuration, appointments) => {
+  let startHour = 10
+  let endHour = 17
+
+  const schedule = scheduleModified.value[selectedProvider.value?.value][selectedDate.value]
+
+  if (schedule) {
+    startHour = schedule.startHour
+    endHour = schedule.endHour
+  }
 
 
-const generateTimeSlots = (serviceDuration, appointments, startHour = 10, endHour = 17) => {
   const timeSlots = [];
   const now = new Date();
   const isToday = selectedDate.value === now.toISOString().slice(0, 10); // Check if selected date is today
@@ -263,11 +339,12 @@ const generateTimeSlots = (serviceDuration, appointments, startHour = 10, endHou
     }
 
     // Check for conflicts
-    const isConflict = appointments.some((app) => {
+
+    const isConflict = appointments?.some((app) => {
       const appStart = parseTime(app.start);
       const appEnd = parseTime(app.end);
       return slotStart < appEnd && slotEnd > appStart;
-    });
+    }) || false;
 
     if (!isConflict) {
       timeSlots.push(formatTime(slotStart));
@@ -279,19 +356,26 @@ const generateTimeSlots = (serviceDuration, appointments, startHour = 10, endHou
 
   return timeSlots;
 };
-
-
 const parseTime = (timeStr) => {
   const [hours, minutes] = timeStr.split(":").map(Number);
   const time = new Date();
   time.setHours(hours, minutes, 0, 0);
   return time;
 };
-
 const formatTime = (date) => {
   return date.toTimeString().slice(0, 5);
 };
-
+function handleProvider (val) {
+  step.value = 3
+  selectedProvider.value = val
+  selectedDate.value = ''
+  updateAvailableHours()
+}
+function handleService (val) {
+  selectedService.value = val
+  step.value = 2
+  updateAvailableHours()
+}
 function handleSaveAppointment () {
   const startDateTime = `${selectedDate.value}T${selectedHour.value}:00`;
   const endDateTime = date.addToDate(startDateTime, { minutes: selectedService.value.duration });
@@ -301,15 +385,16 @@ function handleSaveAppointment () {
     end: endHour,
     date: selectedDate.value,
     appointmentDetails: {
-      label: selectedService.value.label,
-      value: selectedService.value.value,
-      duration: selectedService.value.duration
+      label: selectedService.value?.label,
+      value: selectedService.value?.value,
+      duration: selectedService.value?.duration
     }}
 
-  appointments.unshift(appointment)
+  appointments[selectedProvider.value?.value][selectedDate.value] = appointments[selectedProvider.value?.value][selectedDate.value] ?? [];
+  appointments[selectedProvider.value?.value][selectedDate.value].unshift(appointment);
+
   selectedHour.value = ''
   updateAvailableHours()
-  console.log(appointment)
 }
 </script>
 

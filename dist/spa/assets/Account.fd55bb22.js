@@ -1,1 +1,0 @@
-import{Q as r}from"./QPage.5230c700.js";import{_ as t}from"./plugin-vue_export-helper.21dcd24c.js";import{u as o,v as a,x as c,z as s}from"./index.8920e26a.js";import"./render.97787f3d.js";const n={};function f(l,e){return o(),a(r,{class:"flex flex-center"},{default:c(()=>e[0]||(e[0]=[s("h3",null,"Account page",-1)])),_:1})}var i=t(n,[["render",f]]);export{i as default};
