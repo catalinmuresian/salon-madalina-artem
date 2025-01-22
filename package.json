@@ -6,7 +6,6 @@
   "author": "catalinmuresian <82952859+catalinmuresian@users.noreply.github.com>",
   "private": true,
   "scripts": {
-    "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
     "build": "quasar build"
   },

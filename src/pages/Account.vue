@@ -7,20 +7,20 @@
       overlay>
       <q-scroll-area class="fit">
         <q-list padding class="menu-list">
-          <q-item active clickable v-ripple>
+          <q-item
+            v-for="{label, id} in navLinks"
+            @click="activeSection = id"
+            :key="id"
+            :active="activeSection === id"
+            clickable
+            v-ripple>
             <q-item-section>
-              Calendar
-            </q-item-section>
-          </q-item>
-          <q-item clickable v-ripple>
-            <q-item-section>
-              Account
+              {{ label }}
             </q-item-section>
           </q-item>
         </q-list>
       </q-scroll-area>
     </q-drawer>
-
   </div>
 </template>
 
@@ -29,44 +29,22 @@ import {ref} from "vue";
 
 const drawer = ref(true)
 
-const menuList = [
+const activeSection = ref('calendar')
+
+const navLinks = ref([
   {
-    icon: 'inbox',
-    label: 'Inbox',
-    separator: true
+    label: 'Calendar',
+    id: 'calendar'
   },
   {
-    icon: 'send',
-    label: 'Outbox',
-    separator: false
+    label: 'Servicii',
+    id: 'services'
   },
   {
-    icon: 'delete',
-    label: 'Trash',
-    separator: false
+    label: 'Cont',
+    id: 'account'
   },
-  {
-    icon: 'error',
-    label: 'Spam',
-    separator: true
-  },
-  {
-    icon: 'settings',
-    label: 'Settings',
-    separator: false
-  },
-  {
-    icon: 'feedback',
-    label: 'Send Feedback',
-    separator: false
-  },
-  {
-    icon: 'help',
-    iconColor: 'primary',
-    label: 'Help',
-    separator: false
-  }
-]
+])
 
 </script>
 

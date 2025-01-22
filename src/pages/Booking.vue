@@ -16,7 +16,7 @@
       <q-step
         :name="2"
         prefix="2"
-        title="Selecteaza persoana"
+        title="Selecteaza tehnician"
         :done="step > 2"/>
       <q-step
         :name="3"
@@ -46,7 +46,7 @@
         v-if="selectedService"
         v-model="selectedProvider"
         :options="listProviders"
-        label="Selecteaza persoana"
+        label="Selecteaza tehnician"
         option-value="value"
         option-label="label"
         @update:model-value="(val) => handleProvider(val)"
@@ -69,7 +69,8 @@
           <div
             v-for="{ start, end, appointmentDetails} in existingAppointmentsList"
             :key="start + end">
-            <span>{{ `${start}-${end} - ${appointmentDetails.label}` }}</span>
+            <span :style="appointmentDetails.value === 'off' && 'font-style: italic;color: #a2a2a2'">{{ `${start}-${end} - ${appointmentDetails.label}` }}</span>
+
           </div>
         </div>
       </div>
@@ -105,7 +106,7 @@ import { reactive, ref, computed } from "vue";
 import ro from "quasar/lang/ro";
 import {date} from "quasar";
 import {useStore} from "vuex";
-const { state } = useStore()
+const { state, commit } = useStore()
 
 const selectedHour = ref("");
 const selectedService = ref("");
@@ -120,51 +121,15 @@ const services = [
   { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 },
   { label: "Pedichiura clasica (30 minute)", value: "pedichiura_clasica", duration: 30 },
 ];
-const listProviders = ref([
-  {
-    value: 'madalina_artem',
-    label: 'Madalina Artem'
-  },
-  {
-    value: 'marius_alexandru',
-    label: 'Marius Alexandru'
-  }
-])
+const listProviders = computed(() => {
+  return state.data.listProviders
+})
 const selectedProvider = ref('')
-const appointments = reactive({
-    madalina_artem: {
-      "2025-01-21": [
-        { start: "13:30", end: "15:30", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 } }
-      ],
-      "2025-01-23": [
-        { start: "13:30", end: "14:30", appointmentDetails: { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 } },
-        { start: "14:30", end: "16:30", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 } }
-      ],
-      "2025-01-28": [
-        { start: "12:00", end: "13:00", appointmentDetails: { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 } },
-        { start: "16:00", end: "16:30", appointmentDetails: { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 } }
-      ],
-      "2025-01-27": [
-        { start: "13:00", end: "13:30", appointmentDetails: { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 } }
-      ]
-    },
-    marius_alexandru: {
-      "2025-01-22": [
-        { start: "13:30", end: "14:30", appointmentDetails: { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 } }
-      ],
-      "2025-01-23": [
-        { start: "14:30", end: "16:30", appointmentDetails: { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 } }
-      ],
-      "2025-01-24": [
-        { start: "12:00", end: "13:00", appointmentDetails: { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 } }
-      ]
-    }
-  });
-const user = ref({
-    name: 'Madalina',
-    email: 'madalin@yahoo.com',
-    phone: '0763234567',
-    role: 'owner'
+const appointments = computed(() => {
+  return state.data.appointments
+});
+const user = computed(() => {
+  return state.data.user
 })
 const exceptionWeekendDays = computed(() => {
   return selectedProvider
@@ -184,7 +149,7 @@ const serviceOptions = computed(() => services.map((service) => ({
 })));
 const existingAppointmentsList = computed(() => {
   return (selectedProvider.value?.value && selectedDate.value)
-    ? appointments[selectedProvider.value?.value][selectedDate.value]?.sort((a, b) => a.start.localeCompare(b.start)) || []
+    ? appointments.value[selectedProvider.value?.value][selectedDate.value] || []
     : []
 })
 
@@ -285,7 +250,7 @@ const updateAvailableHours = () => {
     );
     const serviceDuration = selectedServiceObj.duration;
 
-    const filteredAppointments = appointments[selectedProvider.value?.value][selectedDate.value]
+    const filteredAppointments = appointments.value[selectedProvider.value?.value][selectedDate.value]
     availableHours.value = generateTimeSlots(
       serviceDuration,
       filteredAppointments
@@ -390,9 +355,11 @@ function handleSaveAppointment () {
       duration: selectedService.value?.duration
     }}
 
-  appointments[selectedProvider.value?.value][selectedDate.value] = appointments[selectedProvider.value?.value][selectedDate.value] ?? [];
-  appointments[selectedProvider.value?.value][selectedDate.value].unshift(appointment);
-
+  commit('ADD_APPOINTMENT', {
+    selectedProvider: selectedProvider.value?.value,
+    selectedDate: selectedDate.value,
+    appointment
+  })
   selectedHour.value = ''
   updateAvailableHours()
 }
