@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Salon Madalina Artem",
   "productName": "Salon Madalina Artem",
-  "author": "catalinmuresian <82952859+catalinmuresian@users.noreply.github.com>",
+  "author": "mcatalin.dev@gmail.com",
   "private": true,
   "scripts": {
     "dev": "quasar dev",

@@ -65,15 +65,26 @@
       />
       <div v-if="existingAppointmentsList.length && (user.role === 'owner' || user.role === 'admin')">
         <h6 style="margin: 0;">Programari existente</h6>
-        <div>
+        <div v-for="({ start, end, appointmentDetails, id}, index) in existingAppointmentsList"
+             :key="id"
+             style="display: flex;flex-direction: column;">
           <div
-            v-for="{ start, end, appointmentDetails} in existingAppointmentsList"
-            :key="start + end">
+            style="display: flex;align-items: center;justify-content: space-between">
             <span :style="appointmentDetails.value === 'off' && 'font-style: italic;color: #a2a2a2'">{{ `${start}-${end} - ${appointmentDetails.label}` }}</span>
-
+            <q-btn rounded
+                   flat
+                   color="grey"
+                   dense
+                   size="12px"
+                   icon="delete"
+                   @click="handleDeleteAppointment(id)"
+            />
           </div>
+          <q-separator v-if="index + 1 !== existingAppointmentsList.length"
+                       style="margin: 5px 0;"/>
         </div>
       </div>
+
       <div v-if="selectedDate">
         <q-chip
           v-for="hour in availableHours"
@@ -102,7 +113,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed } from "vue";
+import {reactive, ref, computed, watch} from "vue";
 import ro from "quasar/lang/ro";
 import {date} from "quasar";
 import {useStore} from "vuex";
@@ -115,11 +126,11 @@ const availableHours = ref([]);
 const locale = ro;
 const step = ref(0);
 const services = [
-  { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 },
-  { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 },
-  { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 },
   { label: "Manichiura clasica (30 minute)", value: "manichiura_clasica", duration: 30 },
   { label: "Pedichiura clasica (30 minute)", value: "pedichiura_clasica", duration: 30 },
+  { label: "Pedichiura semipermanenta (60 minute)", value: "semi_permanenta_pedichiura", duration: 60 },
+  { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 },
+  { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 },
 ];
 const listProviders = computed(() => {
   return state.data.listProviders
@@ -158,7 +169,8 @@ const isDisabledDate = (date) => {
   return disableDates.value[selectedProvider.value?.value].includes(formattedDate);
 };
 const isWeekend = (date) => {
-  const day = date.getDay();
+  const newDate = new Date(date);
+  const day = newDate.getDay()
   return day === 0 || day === 6; // Sunday (0) or Saturday (6)
 };
 const disablePastDates = (dateStr) => {
@@ -257,41 +269,35 @@ const updateAvailableHours = () => {
     );
   }
 };
-const generateTimeSlots = (serviceDuration, appointments) => {
-  let startHour = 10
-  let endHour = 17
 
-  const schedule = scheduleModified.value[selectedProvider.value?.value][selectedDate.value]
+const generateTimeSlots = (serviceDuration, appointments) => {
+  let startHour = '10:00';
+  let endHour = '17:00';
+
+  const schedule = scheduleModified.value[selectedProvider.value?.value]?.[selectedDate.value];
 
   if (schedule) {
-    startHour = schedule.startHour
-    endHour = schedule.endHour
+    startHour = schedule.startHour; // Already in 'HH:mm' format
+    endHour = schedule.endHour;     // Already in 'HH:mm' format
   }
-
 
   const timeSlots = [];
   const now = new Date();
   const isToday = selectedDate.value === now.toISOString().slice(0, 10); // Check if selected date is today
 
-  let currentTime = new Date();
-  currentTime.setHours(startHour, 0, 0, 0);
+  let currentTime = parseTime(startHour);
 
-  // If the selected day is today, start from the next available time
+  // If the selected day is today, adjust the start time to the next available time
   if (isToday) {
-    if (now.getHours() >= endHour) {
+    if (now.getHours() >= parseTime(endHour).getHours()) {
       // If the current time is past the work hours, return an empty array
       return [];
     }
-    currentTime.setHours(
-      now.getHours(),
-      Math.ceil(now.getMinutes() / 30) * 30,
-      0,
-      0
-    );
+    currentTime = new Date();
+    currentTime.setMinutes(Math.ceil(now.getMinutes() / 30) * 30, 0, 0); // Round to next 30-minute slot
   }
 
-  const endTime = new Date();
-  endTime.setHours(endHour, 0, 0, 0);
+  const endTime = parseTime(endHour);
 
   while (currentTime < endTime) {
     const slotStart = new Date(currentTime);
@@ -304,7 +310,6 @@ const generateTimeSlots = (serviceDuration, appointments) => {
     }
 
     // Check for conflicts
-
     const isConflict = appointments?.some((app) => {
       const appStart = parseTime(app.start);
       const appEnd = parseTime(app.end);
@@ -321,15 +326,95 @@ const generateTimeSlots = (serviceDuration, appointments) => {
 
   return timeSlots;
 };
+
 const parseTime = (timeStr) => {
   const [hours, minutes] = timeStr.split(":").map(Number);
   const time = new Date();
   time.setHours(hours, minutes, 0, 0);
   return time;
 };
+
 const formatTime = (date) => {
-  return date.toTimeString().slice(0, 5);
+  return date.toTimeString().slice(0, 5); // Format as 'HH:mm'
 };
+
+
+
+// const generateTimeSlots = (serviceDuration, appointments) => {
+//   let startHour = '10:00'
+//   let endHour = '17:00'
+//
+//   const schedule = scheduleModified.value[selectedProvider.value?.value][selectedDate.value]
+//
+//   if (schedule) {
+//     startHour = schedule.startHour
+//     endHour = schedule.endHour
+//   }
+//
+//
+//   const timeSlots = [];
+//   const now = new Date();
+//   const isToday = selectedDate.value === now.toISOString().slice(0, 10); // Check if selected date is today
+//
+//   let currentTime = new Date();
+//   currentTime.setHours(startHour, 0, 0, 0);
+//
+//   // If the selected day is today, start from the next available time
+//   if (isToday) {
+//     if (now.getHours() >= endHour) {
+//       // If the current time is past the work hours, return an empty array
+//       return [];
+//     }
+//     currentTime.setHours(
+//       now.getHours(),
+//       Math.ceil(now.getMinutes() / 30) * 30,
+//       0,
+//       0
+//     );
+//   }
+//
+//   const endTime = new Date();
+//   endTime.setHours(endHour, 0, 0, 0);
+//
+//   while (currentTime < endTime) {
+//     const slotStart = new Date(currentTime);
+//     const slotEnd = new Date(currentTime);
+//     slotEnd.setMinutes(slotStart.getMinutes() + serviceDuration);
+//
+//     // Ensure the slot end time does not exceed the working hours
+//     if (slotEnd > endTime) {
+//       break;
+//     }
+//
+//     // Check for conflicts
+//
+//     const isConflict = appointments?.some((app) => {
+//       const appStart = parseTime(app.start);
+//       const appEnd = parseTime(app.end);
+//       return slotStart < appEnd && slotEnd > appStart;
+//     }) || false;
+//
+//     if (!isConflict) {
+//       timeSlots.push(formatTime(slotStart));
+//     }
+//
+//     // Increment by 30 minutes for the next slot
+//     currentTime.setMinutes(currentTime.getMinutes() + 30);
+//   }
+//
+//   return timeSlots;
+// };
+// const parseTime = (timeStr) => {
+//   const [hours, minutes] = timeStr.split(":").map(Number);
+//   const time = new Date();
+//   time.setHours(hours, minutes, 0, 0);
+//   return time;
+// };
+// const formatTime = (date) => {
+//   return date.toTimeString().slice(0, 5);
+// };
+
+
 function handleProvider (val) {
   step.value = 3
   selectedProvider.value = val
@@ -363,6 +448,17 @@ function handleSaveAppointment () {
   selectedHour.value = ''
   updateAvailableHours()
 }
+function handleDeleteAppointment (id) {
+  commit('DELETE_APPOINTMENT', {
+    id,
+    provider: selectedProvider.value?.value,
+    date: selectedDate.value
+  })
+}
+
+watch(() => appointments.value, (value) => {
+  updateAvailableHours()
+}, {deep: true})
 </script>
 
 <style lang="scss">
