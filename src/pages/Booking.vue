@@ -113,10 +113,11 @@
 </template>
 
 <script setup>
-import {reactive, ref, computed, watch} from "vue";
+import {computed, ref, watch} from "vue";
 import ro from "quasar/lang/ro";
 import {date} from "quasar";
 import {useStore} from "vuex";
+
 const { state, commit } = useStore()
 
 const selectedHour = ref("");
@@ -132,6 +133,9 @@ const services = [
   { label: "Manichiura semipermanenta (60 minute)", value: "semi_permanenta_manichiura", duration: 60 },
   { label: "Intretinere gel (120 minute)", value: "intretinere_gel", duration: 120 },
 ];
+const defaultSchedule = computed(() => {
+  return state.data.defaultSchedule
+})
 const listProviders = computed(() => {
   return state.data.listProviders
 })
@@ -193,12 +197,25 @@ const disablePastDates = (dateStr) => {
     return false; // Disable weekends not in exceptions
   }
 
+  let endHour = defaultSchedule.value[selectedProvider.value?.value]?.end;
+
+  const schedule = scheduleModified.value[selectedProvider.value?.value]?.[selectedDate.value];
+
+  if (schedule) {
+    endHour = schedule.endHour;     // Already in 'HH:mm' format
+  }
+
   // Check if today's work hours are past
   if (selectedDate.getTime() === today.getTime()) {
     const now = new Date();
+     // The time string in 'HH:mm' format
+    // Convert the 'HH:mm' string into hours and minutes
+    const [hours, minutes] = endHour.split(':').map(Number);
+
     const endOfWorkHours = new Date();
-    endOfWorkHours.setHours(17, 0, 0, 0); // Set work hours end to 5 PM
-    return now < endOfWorkHours; // Enable only if current time is before 5 PM
+    endOfWorkHours.setHours(hours, minutes, 0, 0); // Set work hours end to the parsed time
+
+    return now < endOfWorkHours; // Enable only if current time is before the parsed 5:00 PM
   }
   return true; // Enable future dates
 };
@@ -271,8 +288,8 @@ const updateAvailableHours = () => {
 };
 
 const generateTimeSlots = (serviceDuration, appointments) => {
-  let startHour = '10:00';
-  let endHour = '17:00';
+  let startHour = defaultSchedule.value[selectedProvider.value?.value]?.start;
+  let endHour = defaultSchedule.value[selectedProvider.value?.value]?.end;
 
   const schedule = scheduleModified.value[selectedProvider.value?.value]?.[selectedDate.value];
 
@@ -426,11 +443,21 @@ function handleService (val) {
   step.value = 2
   updateAvailableHours()
 }
+function generateRandomId(length = 6) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let randomId = '';
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * chars.length);
+    randomId += chars[randomIndex];
+  }
+  return randomId;
+}
 function handleSaveAppointment () {
   const startDateTime = `${selectedDate.value}T${selectedHour.value}:00`;
   const endDateTime = date.addToDate(startDateTime, { minutes: selectedService.value.duration });
   const endHour = date.formatDate(endDateTime, "HH:mm");
   const appointment = {
+    id: generateRandomId(),
     start: selectedHour.value,
     end: endHour,
     date: selectedDate.value,
